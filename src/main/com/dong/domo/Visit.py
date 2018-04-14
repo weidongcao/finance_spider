@@ -15,3 +15,12 @@ class Visit:
             stat_time=self.stat_time
         )
 
+    def __str__(self) -> str:
+        return """['sid': {sid}, 'bid': {bid}, 'read_cnt': {read_cnt}]""".format(
+            sid=self.sid,
+            bid=self.bid,
+            read_cnt=self.read_cnt
+        )
+
+
+

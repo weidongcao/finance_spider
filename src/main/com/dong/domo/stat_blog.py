@@ -91,14 +91,18 @@ def main(offset):
     total_visit = 0
     for item in items:
         for visit in item:
-            blog_write_to_mysql(visit)
+            # write_to_json(visit)
+            # blog_write_to_mysql(visit)
+            print(visit.__str__())
             total_visit += int(visit.read_cnt)
 
     csdns = parse_one_page_summary(html)
     for item in csdns:
         for csdn in item:
             csdn.visit = total_visit
-            csdn_write_to_mysql(csdn)
+            print(csdn.__str__())
+            # write_to_json(csdn)
+            # csdn_write_to_mysql(csdn)
         # print(csdn)
 
 

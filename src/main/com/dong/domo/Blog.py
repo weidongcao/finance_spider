@@ -15,3 +15,15 @@ class blog:
             publish_time=publish_time,
             title=title
         )
+
+    def __str__(self) -> str:
+        return """{'bid': {bid}, 'levels': {levels}, 'publish_time': {publish_time}, 'publish_type': {publish_type}, 'title': {title}}""".format(
+            bid=self.bid,
+            levels=self.levels,
+            publish_time=self.publish_time,
+            publish_type=self.publish_type,
+            title=self.title
+        )
+
+
+

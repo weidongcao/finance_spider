@@ -24,4 +24,20 @@ class Csdn:
             rank=rank
         )
 
+    def __str__(self) -> str:
+        return """['cid': {cid}, 'cdate': {cdate}, 'original': {original}, 'fans': {fans}, 'liked': {liked}, 'comments': {comments}, 'levels': {levels}, 'visit': {visit}, 'score': {score}, 'rank': {rank}]""".format(
+            cid=self.cid,
+            cdate=self.cdate,
+            original=self.original,
+            fans=self.fans,
+            liked=self.liked,
+            comments=self.comments,
+            levels=self.levels,
+            visit=self.visit,
+            score=self.score,
+            rank=self.rank
+        )
+
+
+
 
