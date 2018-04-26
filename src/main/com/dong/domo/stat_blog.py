@@ -32,6 +32,20 @@ def parse_one_page_list(html):
         }
 
 
+def parse_page_index(html):
+    pattern = re.compile(
+        '<ul class="pagination justify-content-center">.*?<li.*?href=.*?daerzei/article/list/(.*?)".*?rel="next".*?</ul>'
+        , re.S
+    )
+    index = 1
+    pages = re.findall(pattern, html)
+    for page in pages:
+        if page.isdigit() and (int(page) > index):
+            index = int(page) + 1
+
+    return index
+
+
 def parse_one_page_summary(sss):
     p = re.compile(
         'div.*?inf_number_box.*?title="(.*?)".*?title="(.*?)".*?title="(.*?)".*?title="(.*?)".*?interflow.*?title="(.*?)级.*?title="(.*?)".*?title="(.*?)".*?title="(.*?)".*?</div>',
@@ -69,7 +83,7 @@ def write_to_json(content):
 def blog_write_to_mysql(visit):
     db = pymysql.connect(host='cm02.spark.com', user='root', password='123123', port=3306, db='spiders', charset='utf8')
     cursor = db.cursor()
-    cursor.execute(visit.insert_sql)
+    cursor.execute(visit.insert_sql())
     db.commit()
     db.close()
 
@@ -77,7 +91,7 @@ def blog_write_to_mysql(visit):
 def csdn_write_to_mysql(csdn):
     db = pymysql.connect(host='cm02.spark.com', user='root', password='123123', port=3306, db='spiders', charset='utf8')
     cursor = db.cursor()
-    cursor.execute(csdn.insert_sql)
+    cursor.execute(csdn.insert_sql())
     db.commit()
     db.close()
 
@@ -85,25 +99,31 @@ def csdn_write_to_mysql(csdn):
 def main(offset):
     # url = 'http://maoyan.com/board/4?offset=' + str(offset)
     url = 'https://blog.csdn.net/daerzei'
-    html = get_one_page(url)
-    # print(html)
-    items = parse_one_page_list(html)
+    main_html = get_one_page(url)
+    # print(main_html)
+
+    pages = parse_page_index(main_html)
     total_visit = 0
-    for item in items:
-        for visit in item:
-            # write_to_json(visit)
-            # blog_write_to_mysql(visit)
-            print(visit.__str__())
-            total_visit += int(visit.read_cnt)
+
+    for page in range(1, pages):
+        if page == 1:
+            html = get_one_page(url)
+        else:
+            html = get_one_page(url + '/article/list/' + page.__str__())
+        items = parse_one_page_list(html)
+        for item in items:
+            for visit in item:
+                # write_to_json(visit)
+                print(visit.__str__())
+                # blog_write_to_mysql(visit)
+                total_visit += int(visit.read_cnt)
 
     csdns = parse_one_page_summary(html)
     for item in csdns:
         for csdn in item:
             csdn.visit = total_visit
             print(csdn.__str__())
-            # write_to_json(csdn)
             # csdn_write_to_mysql(csdn)
-        # print(csdn)
 
 
 if __name__ == "__main__":
