@@ -17,9 +17,12 @@ def get_one_page(url):
         return response.text
     return None
 
+# def get_one_page_tmp(url):
+
 
 def parse_one_page_list(html):
     pattern = re.compile(
+        # '<li class="blog-unit">'
         '<li.*?blog-unit.*?details/(.*?)".*?span>(.*?)</span>.*?</li>',
         re.S
     )
@@ -34,13 +37,14 @@ def parse_one_page_list(html):
 
 def parse_page_index(html):
     pattern = re.compile(
-        '<ul class="pagination justify-content-center">.*?<li.*?href=.*?daerzei/article/list/(.*?)".*?rel="next".*?</ul>'
-        , re.S
+        # '<li.*?page-item.*?page-link.*?>(.*?)</a></li>',
+        '<li.*?page-item(.*?)</li>',
+        re.S
     )
     index = 1
     pages = re.findall(pattern, html)
     for page in pages:
-        if page.isdigit() and (int(page) > index):
+        if page.isdigit() and (int(page) >= index):
             index = int(page) + 1
 
     return index
@@ -107,9 +111,9 @@ def main(offset):
 
     for page in range(1, pages):
         if page == 1:
-            html = get_one_page(url)
+            html = main_html
         else:
-            html = get_one_page(url + '/article/list/' + page.__str__())
+            html = get_one_page(url + '/article/list/' + page.__str__() + '?')
         items = parse_one_page_list(html)
         for item in items:
             for visit in item:
@@ -118,7 +122,7 @@ def main(offset):
                 # blog_write_to_mysql(visit)
                 total_visit += int(visit.read_cnt)
 
-    csdns = parse_one_page_summary(html)
+    csdns = parse_one_page_summary(main_html)
     for item in csdns:
         for csdn in item:
             csdn.visit = total_visit
