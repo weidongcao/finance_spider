@@ -11,10 +11,9 @@ from com.dong.domo.Visit import Visit
 
 def parse_page_index(html):
     pattern = re.compile(
-        'D:\\0WorkSpace\\atom\\myblog\\daerzei.html',
+        'article-item-box.*?daerzei/article/details/(.*?)".*?阅读数：(.*?)</span>.*?评论数',
         re.S
     )
-    index = 1
     items = re.findall(pattern, html)
     for item in items:
         yield{
@@ -34,7 +33,7 @@ def write_to_json(content):
         f.write(json.dumps(content, ensure_ascii=False, ) + '\n')
 
 
-def blog_write_to_mysql(visit):
+def visit_write_to_mysql(visit):
     db = pymysql.connect(
         host='caoweidong.cn',
         user='wedo',
@@ -59,7 +58,7 @@ def blog_write_to_mysql(visit):
 
 def main():
     with open(
-            "D:\\0WorkSpace\\atom\myblog\\view-source_https___blog.csdn.net_daerzei.html",
+            "C:\\Users\\Administrator\\Downloads\\daerzei.html",
             'r',
             encoding='utf-8'
     ) as html_src:
@@ -71,7 +70,7 @@ def main():
         for visit in visit_set:
             # write_to_json(visit)
             print(visit.__str__())
-            blog_write_to_mysql(visit)
+            visit_write_to_mysql(visit)
 
 
 if __name__ == "__main__":

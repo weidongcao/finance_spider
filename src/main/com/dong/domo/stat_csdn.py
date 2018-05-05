@@ -35,7 +35,7 @@ def write_to_json(content):
         f.write(json.dumps(content, ensure_ascii=False, ) + '\n')
 
 
-def blog_write_to_mysql(csdn):
+def csdn_write_to_mysql(csdn):
     db = pymysql.connect(
         host='caoweidong.cn',
         user='wedo',
@@ -60,7 +60,7 @@ def blog_write_to_mysql(csdn):
 
 def main():
     with open(
-            "D:\\0WorkSpace\\atom\\myblog\\daerzei.html",
+            "C:\\Users\\Administrator\\Downloads\\daerzei.html",
             'r',
             encoding='utf-8'
     ) as html_src:
@@ -72,7 +72,7 @@ def main():
         for csdn in csdn_set:
             # write_to_json(visit)
             print(csdn.__str__())
-            blog_write_to_mysql(csdn)
+            csdn_write_to_mysql(csdn)
 
 
 if __name__ == "__main__":
