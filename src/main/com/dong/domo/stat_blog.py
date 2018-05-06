@@ -102,7 +102,7 @@ def csdn_write_to_mysql(csdn):
 
 def main(offset):
     # url = 'http://maoyan.com/board/4?offset=' + str(offset)
-    url = 'https://blog.csdn.net/daerzei'
+    url = "C:\\Users\\Administrator\\Downloads\\daerzei.html"
     main_html = get_one_page(url)
     # print(main_html)
 
