@@ -37,7 +37,7 @@ def write_to_json(content):
 
 def csdn_write_to_mysql(csdn):
     db = pymysql.connect(
-        host='caoweidong.cn',
+        host='52.78.135.189',
         user='wedo',
         password='2708&Poem',
         port=7399,
@@ -60,7 +60,7 @@ def csdn_write_to_mysql(csdn):
 
 def main():
     with open(
-            "C:\\Users\\Administrator\\Downloads\\daerzei.html",
+            'D:\\0WorkSpace\\atom\\myblog\\daerzei.html',
             'r',
             encoding='utf-8'
     ) as html_src:
