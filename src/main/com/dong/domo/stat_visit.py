@@ -35,7 +35,7 @@ def write_to_json(content):
 
 def visit_write_to_mysql(visit):
     db = pymysql.connect(
-        host='caoweidong.cn',
+        host='52.78.135.189',
         user='wedo',
         password='2708&Poem',
         port=7399,
@@ -58,7 +58,7 @@ def visit_write_to_mysql(visit):
 
 def main():
     with open(
-            "C:\\Users\\Administrator\\Downloads\\daerzei.html",
+            'D:\\0WorkSpace\\atom\\myblog\\daerzei.html',
             'r',
             encoding='utf-8'
     ) as html_src:
