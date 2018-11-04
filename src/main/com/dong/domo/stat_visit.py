@@ -37,7 +37,7 @@ def visit_write_to_mysql(visit):
     db = pymysql.connect(
         host='13.209.87.201',
         user='wedo',
-        password='2708poem',
+        password='xxxxxxxx',
         port=3306,
         db='wedo',
         charset='utf8'
