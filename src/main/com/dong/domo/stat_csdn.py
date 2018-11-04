@@ -5,6 +5,7 @@ import json
 import re
 
 import pymysql
+import sys
 
 from com.dong.domo.Csdn import Csdn
 
@@ -18,8 +19,9 @@ def parse_page_index(html):
     # return summaries
     for s in summaries:
         # print(s)
-        yield{
-            Csdn(None, None, s[0].strip(), s[1].strip(), s[2].strip(), s[3].strip(), s[4].strip(), s[5].strip(), s[6].strip(), s[7].strip())
+        yield {
+            Csdn(None, None, s[0].strip(), s[1].strip(), s[2].strip(), s[3].strip(), s[4].strip(), s[5].strip(),
+                 s[6].strip(), s[7].strip())
         }
 
 
@@ -37,10 +39,10 @@ def write_to_json(content):
 
 def csdn_write_to_mysql(csdn):
     db = pymysql.connect(
-        host='52.78.135.189',
+        host='13.209.87.201',
         user='wedo',
-        password='2708&Poem',
-        port=7399,
+        password='2708poem',
+        port=3306,
         db='wedo',
         charset='utf8'
     )
@@ -59,8 +61,15 @@ def csdn_write_to_mysql(csdn):
 
 
 def main():
+    if sys.platform.__eq__("linux"):
+        file_path = "/opt/data/myblog/daerzei.html"
+    elif sys.platform.__eq__("win32"):
+        file_path = "D:\\myblog\\daerzei.html"
+    else:
+        return
+
     with open(
-            'D:\\0WorkSpace\\atom\\myblog\\daerzei.html',
+            file_path,
             'r',
             encoding='utf-8'
     ) as html_src:

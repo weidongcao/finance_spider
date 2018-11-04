@@ -35,10 +35,10 @@ def write_to_json(content):
 
 def visit_write_to_mysql(visit):
     db = pymysql.connect(
-        host='52.78.135.189',
+        host='13.209.87.201',
         user='wedo',
-        password='2708&Poem',
-        port=7399,
+        password='2708poem',
+        port=3306,
         db='wedo',
         charset='utf8'
     )
