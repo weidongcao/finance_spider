@@ -1,25 +1,23 @@
 """
-使用Python爬虫爬取自己博客统计CSDN所有博客总的浏览量
+使用Python爬虫爬取自己博客统计不同的博客的浏览量
 """
 import json
 import re
 
 import pymysql
 
-from com.dong.domo.Csdn import Csdn
+from com.dong.entity.Visit import Visit
 
 
 def parse_page_index(html):
-    p = re.compile(
-        'item-tiling.*?title="(.*?)".*?title="(.*?)".*?title="(.*?)".*?title="(.*?)".*?grade-box.*?title="(.*?)级.*?title="(.*?)".*?title="(.*?)".*?title="(.*?)".*?</div>',
+    pattern = re.compile(
+        'article-item-box.*?daerzei/article/details/(.*?)".*?阅读数：(.*?)</span>.*?评论数',
         re.S
     )
-    summaries = re.findall(p, html)
-    # return summaries
-    for s in summaries:
-        # print(s)
+    items = re.findall(pattern, html)
+    for item in items:
         yield{
-            Csdn(None, None, s[0].strip(), s[1].strip(), s[2].strip(), s[3].strip(), s[4].strip(), s[5].strip(), s[6].strip(), s[7].strip())
+            Visit(None, item[0].strip(), item[1])
         }
 
 
@@ -35,12 +33,12 @@ def write_to_json(content):
         f.write(json.dumps(content, ensure_ascii=False, ) + '\n')
 
 
-def csdn_write_to_mysql(csdn):
+def visit_write_to_mysql(visit):
     db = pymysql.connect(
-        host='caoweidong.cn',
+        host='13.209.87.201',
         user='wedo',
-        password='2708&Poem',
-        port=7399,
+        password='xxxxxxxx',
+        port=3306,
         db='wedo',
         charset='utf8'
     )
@@ -53,26 +51,26 @@ def csdn_write_to_mysql(csdn):
     #     charset='utf8'
     # )
     cursor = db.cursor()
-    cursor.execute(csdn.insert_sql())
+    cursor.execute(visit.insert_sql())
     db.commit()
     db.close()
 
 
 def main():
     with open(
-            'D:\\0WorkSpace\\atom\\myblog\\solr.html',
+            'D:\\0WorkSpace\\atom\\myblog\\daerzei.html',
             'r',
             encoding='utf-8'
     ) as html_src:
         content = html_src.read()
 
-    csdns = parse_page_index(content)
+    visits = parse_page_index(content)
 
-    for csdn_set in csdns:
-        for csdn in csdn_set:
+    for visit_set in visits:
+        for visit in visit_set:
             # write_to_json(visit)
-            print(csdn.__str__())
-            csdn_write_to_mysql(csdn)
+            print(visit.__str__())
+            visit_write_to_mysql(visit)
 
 
 if __name__ == "__main__":

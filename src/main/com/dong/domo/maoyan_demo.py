@@ -53,8 +53,9 @@ def write_to_json(content):
 
 
 def main(offset):
-    url = 'http://maoyan.com/board/4?offset=' + str(offset)
+    url = 'https://blog.csdn.net/daerzei/article/details/82344569'
     html = get_one_page(url)
+    print(html)
     items = parse_one_page(html)
     for item in items:
         write_to_json(item)

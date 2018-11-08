@@ -6,9 +6,9 @@ import re
 
 import pymysql
 import requests
-
-from com.dong.domo.Csdn import Csdn
 from com.dong.domo.Visit import Visit
+
+from com.dong.entity.Csdn import Csdn
 
 
 def get_one_page(url):
