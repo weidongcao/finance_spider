@@ -99,20 +99,8 @@ solr_conf_dir = "yisou"
 # solr collection alias for all
 collection_alias_all = project_identify + "-all"
 
-# 获取Solr所有Collection的HTTP请求模板
-get_all_collection_url_template = """ {host_name}:{solr_port}/solr/admin/collections?action=LIST&wt=json """
-# 生成Solr Collection的HTTP请求模板
-create_collection_url_template = """{host_name}:{solr_port}/solr/admin/collections?action=CREATE&name={\
-collection_name}&numShards={numShards}&replicationFactor={replicationFactor}&maxShardsPerNode={\
-maxShardsPerNode}&collection.configName={solr_conf_dir}&wt=json """
-
-# 为所有Collection创建别名的模板
-create_alias_url_template = """{host_name}:{solr_port}/solr/admin/collections?action=CREATEALIAS&name=\
-{collection_name}&collections={all_collection}&wt=json """
-
-# 删除Solr里Collection的别名
-delete_alias_url_template = """ {host_name}:{solr_port}/solr/admin/collections?action=\
-DELETEALIAS&name={alias_name}&wt=json"""
+# 请求模板
+HTTP_REQUEST_URL_TEMPLATE = "{host_name}:{solr_port}/solr/admin/collections?action={action}{params}&wt=json"
 
 # 测试，创建Collection成功的返回结果
 data_create_collection_success = """
@@ -122,10 +110,6 @@ data_create_collection_success = """
 {"responseHeader":{"status":0,"QTime":1734},"core":"yisou20171101_shard3_replica1"}\
 ,"cm01.spark.com:8080_solr":{"responseHeader":{"status":0,"QTime":1725},\
 "core":"yisou20171101_shard1_replica1"}}}
-"""
-
-delete_collection_url_template = """
-{host_name}:{solr_port}/solr/admin/collections?action=DELETE&name={collection}&wt=json
 """
 
 
@@ -191,10 +175,7 @@ def exec_http_request(url):
     try:
         # response = requests
         response = requests.get(url, headers=headers)
-
-        print("response.text = %s" % response.text)
-        # print("response.json() = %s" % response.json())
-        return response
+        return json.loads(response.text.encode('utf8'))
     except Exception as e:
         logger.error('执行curl失败：%s', url.__str__())
         logger.error('执行curl失败', exc_info=True)
@@ -202,7 +183,7 @@ def exec_http_request(url):
         return False
 
 
-def get_collection_name_by_date(key, cur_date):
+def get_collection_name(key, cur_date):
     """
     由当前日期根据指定规则生成Collection名称,如:yisou20171200,表示项目类型为yisou,
     这个Collection里存储的是2017年12月1日到2017年12月10日的数据
@@ -211,6 +192,7 @@ def get_collection_name_by_date(key, cur_date):
     :param cur_date: 当前时间格式为2018-01-01
     :return: Solr Collection 名称
     """
+
     cur_year = cur_date.strftime("%Y")
     cur_month = cur_date.strftime("%m")
     cur_day = cur_date.strftime("%d")
@@ -220,7 +202,7 @@ def get_collection_name_by_date(key, cur_date):
         cur_day = str(int(cur_day) - 5)
 
     # 10天创建一个一个Collection，如1-10号，11-20号，21-最后
-    identify = (int)((int(cur_day) - 1) / 10)
+    identify = int((int(cur_day) - 1) / 10)
     if len(str(identify)) == 1:
         identify = "0" + str(identify)
 
@@ -231,241 +213,22 @@ def get_collection_name_by_date(key, cur_date):
     return collection_name
 
 
-def get_previous_collection_by_name(collection_name):
-    """
-    根据当前Collection的名称获取到前一Collection的名称(yisou20171200)
-
-    :param collection_name: Solr Collection名称
-    :return:  根据规则前一个Solr Collection名称
-    """
-    # 获取日期标识
-    identify = collection_name[-2::1]
-    # 获取月份
-    cur_month = collection_name[-4:-2:1]
-    # 获取年份
-    cur_year = collection_name[-8:-4:1]
-
-    if str(identify) == "00":
-        identify = "02"
-        # 如果月份是01，则上一个一个Collection的月份标识是上一年的
-        if str(cur_month) == "01":
-            cur_year = str(int(cur_year) - 1)
-            cur_month = "12"
-        else:
-            cur_month = str(int(cur_month) - 1)
-    else:
-        identify = str(int(identify) - 1)
-
-    # 统一月份和日标识的长度
-    if len(str(identify)) == 1:
-        identify = "0" + str(identify)
-
-    if len(cur_month.__str__()) == 1:
-        cur_month = "0" + str(cur_month)
-
-    # 得到前一个Collection的名称
-    previous_collection_name = collection_name[:-8:1] + cur_year + cur_month + str(identify)
-
-    logger.debug("%s的前一Collection名称: %s", collection_name, previous_collection_name)
-
-    return previous_collection_name
-
-
-def get_period_by_date(cur_date):
-    """
-    根据当前日期获取Collection要保存的数据的时间段
-
-    :param cur_date: 当时日期，格式为2018-01-01
-    :return: 时间段[开始日期, 结束日期]
-    """
-    cur_day = cur_date.day
-
-    # 一个月的第一天
-    first_date = cur_date + datetime.timedelta(days=(-cur_day + 1))
-
-    # 按月10天创建一个一个Collection，如1号到10号创建一个一个Collection
-    # 11号到20号创建一个一个Collection
-    # 21号到最后创建一个一个Collection
-    # 几号就从1号开始向后偏移对应的天数
-    if 0 < cur_day <= 10:
-        start_date = first_date
-        end_date = first_date + datetime.timedelta(days=(10 - 1))
-    elif 10 < cur_day <= 20:
-        start_date = first_date + datetime.timedelta(days=10)
-        end_date = first_date + datetime.timedelta(days=(20 - 1))
-    else:
-        start_date = first_date + datetime.timedelta(days=20)
-        end_date = get_last_day_of_month(cur_date)
-
-    # Collection的开始时间
-    start_date_str = datetime.datetime.strftime(start_date, "%Y-%m-%d")
-
-    # Collection的结束时间
-    end_date_str = datetime.datetime.strftime(end_date, "%Y-%m-%d")
-
-    logger.debug("当前的日期为: %s ,所在的时间段为：%s 到 %s", cur_date, start_date_str, end_date_str)
-
-    return [start_date_str, end_date_str]
-
-
-def get_period_by_collection_name(collection_name):
-    """
-    根据Collection名称获取它所存储的数据的时间段
-
-    :param collection_name: Solr Collection 名称
-    :return: [开始日期, 结束日期]
-    """
-    # 获取Collection名称的时间标识
-    date_identify = collection_name[-8::1]
-
-    # 获取日标识
-    identify = int(collection_name[-1::1])
-
-    # 获取该时间段内的任意一天
-    date_identify = str(int(date_identify) + 5 + (identify * 10))
-    # 字符串转为日期
-    date_period = datetime.datetime.strptime(date_identify, "%Y%m%d")
-    start_end_period = get_period_by_date(date_period)
-
-    logger.debug(
-        "%s 的Solr Collection存储的数据所在的时间段为: %s 到 %s",
-        collection_name, start_end_period[0], start_end_period[1]
-    )
-
-    return get_period_by_date(date_period)
-
-
-def get_last_day_of_month(cur_date):
-    """
-    根据日期获取所在月的最后一天
-    :param cur_date: 日期,格式为2018-01-01
-    :return: 指定日期所在月的最后一天
-    """
-
-    cur_year = cur_date.year
-    cur_month = cur_date.month
-    cur_day = cur_date.day
-
-    # 获取这个月的多少天
-    days = calendar.monthrange(cur_year, cur_month)[1]
-
-    # 在当前日期的基础上加上对应的天数
-    return cur_date + datetime.timedelta(days=(days - cur_day))
-
-
-def get_forward_collection_name(collection_name):
-    """
-    根据Collection名称获取到下一个Collection的名称
-    :param collection_name: Solr Collection名称
-    :return: 下一个Solr Collection名称
-    """
-    # 获取日标识
-    identify = collection_name[-2::1]
-    # 获取月份
-    cur_month = collection_name[-4:-2:1]
-    # 获取年份
-    cur_year = collection_name[-8:-4:1]
-
-    # 如果日标识为02，表示这个Collection存储的是一个月最后10天的数据，
-    # 下一个一个Collection就是下一个月的了
-    if str(identify) == "02":
-        # 重新开始日标识
-        identify = "00"
-        # 如果是12月，则下一月就过年了
-        if str(cur_month) == "12":
-            cur_year = str(int(cur_year) + 1)
-            cur_month = "1"
-        else:
-            cur_month = str(int(cur_month) + 1)
-    else:
-        identify = str(int(identify) + 1)
-
-    # 统一月份和日标识的长度为2，如果不够的话前面补0
-    if len(str(identify)) == 1:
-        identify = "0" + str(identify)
-
-    if len(str(cur_month)) == 1:
-        cur_month = "0" + str(cur_month)
-
-    # 生成下一个一个Collection的名称
-    forward_collection_name = collection_name[:-8:1] + cur_year + cur_month + identify
-    logger.debug("%s 的下一时间段的Collection为: %s ", collection_name, forward_collection_name)
-
-    return forward_collection_name
-
-
-def get_earliest_collection_name(collections):
-    """
-    根据Solr Collection列表获最早的Collection
-    :param collections: Solr Collection列表
-    :return: Collection列表中最早的Collection
-    """
-    # 要返回的最早的Solr Collection
-    earliest_collection = None
-
-    # 如果Solr Collection列表为空，或者列表内没有元素，直接返回
-    if (collections is None) or (collections.__length__() == 0):
-        return None
-
-    # 获取Collection中最早的Collection
-    for collection in collections:
-        if earliest_collection is None:
-            earliest_collection = collection
-        else:
-            earliest_date_identify = earliest_collection[-8::1]
-            date_identify = collection[-8::1]
-            if int(date_identify) < int(earliest_date_identify):
-                earliest_collection = collection
-
-    return earliest_collection
-
-
-def get_all_collection():
-    """
-    获取Solr所有Collection
-    :return: Solr Collection列表
-    """
-    get_all_collection_url = get_all_collection_url_template.format(host_name=host_name, solr_port=solr_port.__str__())
-
-    logger.info("正在获取Solr所有的Collection ...")
-
-    # 去Solr集群查询
-    response = exec_http_request(get_all_collection_url)
-    collections = response["collections"]
-
-    # 查询返回的结果是unicode编码，转为string
-    col_utf8 = []
-    for col in collections:
-        collection_name = col.encode("utf-8")
-        col_utf8.append(collection_name)
-    logger.info("获取成功, Solr已创建的所有Collection为: %s", col_utf8.__str__())
-
-    return col_utf8
-
-
-def get_collections_by_identify(collection_all, identify):
-    collection_identify = []
-    for col in collection_all:
-        if identify in col:
-            collection_identify.append(col)
-    return collection_identify
-
-
 def get_collection_start_date(collection_name):
     """
+    获取指定Collection所在时间段的第一天
     Solr Collection 是按时间段划分的
     根据Solr Collection的名称获取它存储的数据的时间段的开始日期,格式为：yyyy-mm-dd
     :param collection_name: Solr Collection名称
     :return: 开始日期
     """
-    # 获取Collection名称的时间标识
+    # 获取Collection名称的时间标识:yisou20181100
     date_identify = collection_name[-8::1]
     date_identify = date_identify[0:-1:1] + "0"
 
     # 获取日标识
     identify = int(collection_name[-1::1])
 
-    # 获取该时间段内的任意一天
+    # 获取该时间段内的第一天
     date_identify = str(int(date_identify) + 1 + (identify * 10))
     # 字符串转为日期
     start_date = datetime.datetime.strptime(date_identify, "%Y%m%d")
@@ -490,7 +253,131 @@ def get_collection_end_date(collection_name):
         return start_date + datetime.timedelta(days=(10 - 1))
 
 
-def get_collections_by_start_end_date(start_date_str, end_date_str):
+def get_last_day_of_month(cur_date):
+    """
+    根据日期获取所在月的最后一天
+    :param cur_date: 日期,格式为2018-01-01
+    :return: 指定日期所在月的最后一天
+    """
+
+    cur_year = cur_date.year
+    cur_month = cur_date.month
+    cur_day = cur_date.day
+
+    # 获取这个月的多少天
+    days = calendar.monthrange(cur_year, cur_month)[1]
+
+    # 在当前日期的基础上加上对应的天数
+    return cur_date + datetime.timedelta(days=(days - cur_day))
+
+
+def get_previous_collection_by_name(collection_name):
+    """
+    根据当前Collection的名称获取到前一Collection的名称(yisou20171200)
+
+    :param collection_name: Solr Collection名称
+    :return:  根据规则前一个Solr Collection名称
+    """
+    pjt_identify = collection_name[0:-8]
+
+    end_date = get_collection_start_date(collection_name) + datetime.timedelta(days=-5)
+
+    previous_collection_name = get_collection_name(pjt_identify, end_date)
+
+    logger.debug("%s的前一Collection名称: %s", collection_name, previous_collection_name)
+
+    return previous_collection_name
+
+
+def get_period_by_collection_name(collection_name):
+    """
+    根据Collection名称获取它所存储的数据的时间段
+
+    :param collection_name: Solr Collection 名称
+    :return: [开始日期, 结束日期]
+    """
+    start_date = get_collection_start_date(collection_name)
+    end_date = get_collection_start_date(collection_name)
+
+    return (start_date, end_date)
+
+
+def get_forward_collection_name(collection_name):
+    """
+    根据Collection名称获取到下一个Collection的名称
+    :param collection_name: Solr Collection名称
+    :return: 下一个Solr Collection名称
+    """
+    pjt_identify = collection_name[0:-8]
+    start_date = get_collection_end_date(collection_name) + datetime.timedelta(days=1)
+    forward_collection_name = get_collection_name(pjt_identify, start_date)
+
+    logger.debug("%s 的下一时间段的Collection为: %s ", collection_name, forward_collection_name)
+
+    return forward_collection_name
+
+
+def get_earliest_collection_name(collections):
+    """
+    根据Solr Collection列表获最早的Collection
+    :param collections: Solr Collection列表
+    :return: Collection列表中最早的Collection
+    """
+    # 要返回的最早的Solr Collection
+    earliest_collection = None
+
+    # 如果Solr Collection列表为空，或者列表内没有元素，直接返回
+    if (collections is None) or (collections.__length__() == 0):
+        return None
+
+    # 获取Collection中最早的Collection
+    for collection in collections:
+        if earliest_collection is None:
+            earliest_collection = collection
+        else:
+            earliest_date_identify = earliest_collection[-8:]
+            date_identify = collection[-8:]
+            if int(date_identify) < int(earliest_date_identify):
+                earliest_collection = collection
+
+    return earliest_collection
+
+
+def get_all_collection():
+    """
+    获取Solr所有Collection
+    :return: Solr Collection列表
+    """
+    get_all_collection_url = HTTP_REQUEST_URL_TEMPLATE.format(
+        host_name=host_name,
+        solr_port=solr_port.__str__(),
+        action="LIST",
+        params=''
+    )
+
+    logger.info("正在获取Solr所有的Collection ...")
+
+    try:
+        # 去Solr集群查询
+        response = exec_http_request(get_all_collection_url)
+        collections = response["collections"]
+        logger.info("获取成功, Solr已创建的所有Collection为: %s", collections)
+        return collections
+    except Exception as e:
+        logger.error("获取所有Collection失败")
+        logger.error(e)
+        return None
+
+
+def get_collections_by_identify(collection_all, identify):
+    collection_identify = []
+    for col in collection_all:
+        if identify in col:
+            collection_identify.append(col)
+    return collection_identify
+
+
+def get_collections_by_start_end_date(pjt_identify, start_date_str, end_date_str):
     """
     Solr Collection是按时间段划分的,
     根据开始日期和结束日期获取它们之间的Solr Collection
@@ -503,29 +390,23 @@ def get_collections_by_start_end_date(start_date_str, end_date_str):
     collections = []
     # 开始日期所在的Solr Collection名称
     start_date = datetime.datetime.strptime(start_date_str, "%Y-%m-%d")
-    start_collection_name = get_collection_name_by_date(project_identify, start_date)
+    start_collection_name = get_collection_name(pjt_identify, start_date)
     # 结束日期所在的Solr Collection名称
     end_date = datetime.datetime.strptime(end_date_str, "%Y-%m-%d")
-    end_collection_name = get_collection_name_by_date(project_identify, end_date)
+    end_collection_name = get_collection_name(project_identify, end_date)
 
-    # 如果开始日期与Collection的开始日期一致,将开始日期所在的Collection添加到列表
-    if start_date.date() == get_collection_start_date(start_collection_name).date():
-        collections.append(start_collection_name)
+    collections.append(start_collection_name)
 
     # 从开始的Collection向后获取Collection,一直到结束的Collection
     while True:
         forward_collection_name = get_forward_collection_name(start_collection_name)
+        collections.append(forward_collection_name)
         # 如果是最后一个Collection,跳循环
         if forward_collection_name == end_collection_name:
             break
         else:
             # 否则的话将Collection添加到列表
-            collections.append(forward_collection_name)
             start_collection_name = forward_collection_name
-
-    # 如果结束日期与Collection的结束日期一致,将结束日期所在的Collection添加到列表
-    if end_date.date() == get_collection_end_date(end_collection_name).date():
-        collections.append(end_collection_name)
 
     return collections
 
@@ -591,7 +472,7 @@ def create_previous_collection_until_end_date(collections, cur_collection_name, 
         )
 
     # 获取当前日期的Collection的名称
-    start_collection_name = get_collection_name_by_date(project_identify, start_date)
+    start_collection_name = get_collection_name(project_identify, start_date)
 
     # 获取当前日期的Collection的前一个Collection
     previous_start_collection_name = get_previous_collection_by_name(start_collection_name)
@@ -616,15 +497,19 @@ def create_collection(collection_name):
     :param collection_name: Solr Collection名称
     :return: Solr Collection是否创建成功
     """
+    params = "&name={}&numShards={}&replicationFactor={}&maxShardsPerNode={}&collection.configName={}".format(
+        collection_name,
+        str(numShards),
+        str(replicationFactor),
+        str(maxShardsPerNode),
+        solr_conf_dir
+    )
     # 替换创建模板
-    create_collection_url = create_collection_url_template.format(
+    create_collection_url = HTTP_REQUEST_URL_TEMPLATE.format(
         host_name=host_name,
         solr_port=solr_port.__str__(),
-        numShards=numShards.__str__(),
-        replicationFactor=replicationFactor.__str__(),
-        maxShardsPerNode=maxShardsPerNode.__str__(),
-        collection_name=collection_name,
-        solr_conf_dir=solr_conf_dir
+        action='CREATE',
+        params=params
     )
 
     logger.info("开始创建Collection: %s ... ", collection_name)
@@ -634,14 +519,15 @@ def create_collection(collection_name):
     # response = json.loads(data_create_collection_success)
 
     # 获取此Collection要存储的数据的时间段
-    start_end = get_period_by_collection_name(collection_name)
+    start_date = get_collection_start_date(collection_name)
+    end_date = get_collection_end_date(collection_name)
 
     # 判断是否创建成功
     if "success" in str(response):
-        logger.info("已为 %s 到 %s 期间的数据创建Solr Collection: %s", start_end[0], start_end[1], collection_name)
+        logger.info("已为 %s 到 %s 期间的数据创建Solr Collection: %s", start_date, end_date, collection_name)
         return True
     else:
-        logger.error("创建 %s 到 %s 期间的Solr Collection : %s 失败", start_end[0], start_end[1], collection_name)
+        logger.error("创建 %s 到 %s 期间的Solr Collection : %s 失败", start_date, end_date, collection_name)
         return False
 
 
@@ -658,12 +544,12 @@ def delete_collections(collections):
 
     # 循环删除列表里的Collection
     for collection in collections[0:]:
-
         # 替换要删除的Collection
-        delete_collection_url = delete_collection_url_template.format(
+        delete_collection_url = HTTP_REQUEST_URL_TEMPLATE.format(
             host_name=host_name,
             solr_port=solr_port.__str__(),
-            collection=collection
+            action='DELETE',
+            params="&name={}".format(collection)
         )
 
         # 执行删除
@@ -725,12 +611,14 @@ def create_alias(alias_name, collections):
     :param collections: Solr Collection列表
     :return: 是否创建Solr另外成功
     """
+    params = "&name={}&collections={}".format(alias_name, ','.join(collections))
+
     # 替换请求模板参数
-    create_alias_url = create_alias_url_template.format(
+    create_alias_url = HTTP_REQUEST_URL_TEMPLATE.format(
         host_name=host_name,
         solr_port=solr_port.__str__(),
-        all_collection=','.join(collections),
-        collection_name=alias_name
+        action='CREATEALIAS',
+        params=params
     )
 
     # 先执行删除Solr Collection 别名
@@ -759,11 +647,13 @@ def create_alias_for_all(alias_name, identify):
 
 
 def delete_alias(alias_name):
+    params="&name={}".format(alias_name)
     # 替换请求模板参数
-    delete_alias_url = delete_alias_url_template.format(
+    delete_alias_url = HTTP_REQUEST_URL_TEMPLATE.format(
         host_name=host_name,
         solr_port=solr_port.__str__(),
-        alias_name=alias_name
+        action='DELETEALIAS',
+        params=params
     )
 
     # 执行删除
@@ -818,7 +708,7 @@ def main(args):
     # 当前日期
     cur_date = datetime.datetime.now()
     # 根据规则生成当前时间段的Collection的名称
-    cur_collection_name = get_collection_name_by_date(project_identify, cur_date)
+    cur_collection_name = get_collection_name(project_identify, cur_date)
 
     # 获取Solr集群中所有的Collection
     collections_all = get_all_collection()
@@ -864,10 +754,12 @@ if __name__ == "__main__":
     init("http://data3.hadoop.com", 8983, 1, 1)
     # 定时创建Solr Collection主程序
     # sys.argv用于指定从指定的日期开始创建Solr Collection,一直创建到当前时间
-    main(sys.argv)
+    # main(sys.argv)
 
-    url = "http://data3.hadoop.com:8983/solr/admin/collections?action=LIST&wt=json"
-    exec_http_request(url)
+    # print(get_collection_start_date("yisou20181100"))
+
+    # url = "http://data3.hadoop.com:8983/solr/admin/collections?action=LIST&wt=json"
+    # exec_http_request(url)
     # get_all_collection()
     # 为所有Solr Collection创建别名
     # create_alias_for_all(collection_alias_all, None)
@@ -881,5 +773,4 @@ if __name__ == "__main__":
     # delete_collections_by_start_end_day("2018-06-25", "2018-10-01")
 
     # 创建Solr Collection
-    # create_collection(project_identify + "20180601")
-
+    create_collection(project_identify + "20180601")
