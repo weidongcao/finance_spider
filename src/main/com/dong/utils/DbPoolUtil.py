@@ -2,72 +2,71 @@
 """
 Description: DB工具类
 
-@author: WangLeAi
+@author: CaoWeidong
 @date: 2018/9/18
 """
-from com.dong.utils.PropertiesUtil import prop
+
+from com.dong.utils.ConfUtils import conf
 from DBUtils.PooledDB import PooledDB
 import importlib
 
 
 class DbPoolUtil(object):
-    def __init__(self, config_file='pdbc.properties', db_type='mysql'):
+    def __init__(self, db_type='mysql'):
         """
         初始化
-        :param config_file:  配置文件地址
         :param db_type: 数据库类型,支持 mysql, oracle, sqlserver, sqlite, hbase
         """
-        properties_dic = prop.get_config_dict(config_file)
         self.__db_type = db_type
         if self.__db_type == "mysql":
             config = {
-                'host': properties_dic['host_mysql'],
-                'port': int(properties_dic['port_mysql']),
-                'database': properties_dic['database_mysql'],
-                'user': properties_dic['user_mysql'],
-                'password': properties_dic['password_mysql'],
-                'charset': properties_dic['charset_mysql']
+                'host': conf.get('mysql', 'host'),
+                'port': int(conf.get('mysql', 'port')),
+                'database': conf.get('mysql', 'database'),
+                'user': conf.get('mysql', 'username'),
+                'password': conf.get('mysql', 'password'),
+                'charset': conf.get('mysql', 'charset')
             }
             db_creator = importlib.import_module("pymysql")
-            self.__pool = PooledDB(db_creator, maxcached=50, maxconnections=1000, maxusage=1000, **config)
+            self.__pool = PooledDB(db_creator, maxcached=5, maxconnections=3, maxusage=2, **config)
         elif self.__db_type == "oracle":
             config = {
-                'user': properties_dic['user_orc'],
-                'password': properties_dic['password_orc'],
+                'user': conf.get('oracle', 'username'),
+                'password': conf.get('oracle', 'password'),
                 'dsn': "/".join(
-                    [":".join([properties_dic['host_orc'], properties_dic['port_orc']]),
-                     properties_dic['database_orc']]),
-                'nencoding': properties_dic['nencoding_orc']
+                    [":".join([conf.get('oracle', 'host'), conf.get('oracle', 'port')]),
+                     conf.get('oracle', 'database')]),
+                'nencoding': conf.get('oracle', 'nencoding')
             }
             db_creator = importlib.import_module("cx_Oracle")
-            self.__pool = PooledDB(db_creator, maxcached=50, maxconnections=1000, maxusage=1000, **config)
+            self.__pool = PooledDB(db_creator, maxcached=5, maxconnections=3, maxusage=3, **config)
         elif self.__db_type == "sqlserver":
             config = {
-                'host': properties_dic['host_ms'],
-                'port': int(properties_dic['port_ms']),
-                'database': properties_dic['database_ms'],
-                'user': properties_dic['user_ms'],
-                'password': properties_dic['password_ms'],
-                'charset': properties_dic['charset_ms']
+                'host': conf.get('sqlserver', 'host'),
+                'port': int(conf.get('sqlserver', 'port')),
+                'database': conf.get('sqlserver', 'database'),
+                'user': conf.get('sqlserver', 'username'),
+                'password': conf.get('sqlserver', 'password'),
+                'charset': conf.get('sqlserver', 'charset')
             }
             db_creator = importlib.import_module("pymssql")
-            self.__pool = PooledDB(db_creator, maxcached=50, maxconnections=1000, maxusage=1000, **config)
+            self.__pool = PooledDB(db_creator, maxcached=5, maxconnections=3, maxusage=3, **config)
         elif self.__db_type == "sqlite":
             config = {
-                'database': properties_dic['database_sqlite3']
+                'database': conf.get('sqlite', 'database_sqlite3')
             }
             db_creator = importlib.import_module("sqlite3")
-            self.__pool = PooledDB(db_creator, maxcached=50, maxconnections=1000, maxusage=1000, **config)
+            self.__pool = PooledDB(db_creator, maxcached=5, maxconnections=3, maxusage=3, **config)
         elif self.__db_type == "hbase":
             # 'autocommit': True配置一定要，否则插入删除语句执行无效
             config = {
-                'url': 'http://{0}:{1}'.format(properties_dic['host_hb'], properties_dic['port_hb']),
-                'user': properties_dic['user_hb'],
-                'password': properties_dic['password_hb'],
+                'url': 'http://{0}:{1}'.format(conf.get('hbase', 'host'), conf.get('hbase', 'port')),
+                'user': conf.get('hbase', 'user'),
+                'password': conf.get('hbase', 'password'),
                 'autocommit': True
             }
             db_creator = importlib.import_module("phoenixdb")
-            self.__pool = PooledDB(db_creator, maxcached=50, maxconnections=1000, maxusage=1000, **config)
+            self.__pool = PooledDB(db_creator, maxcached=5, maxconnections=3, maxusage=3, **config)
         else:
             raise Exception("unsupported database type " + self.__db_type)
 
@@ -263,9 +262,10 @@ class DbPoolUtil(object):
         conn.close()
 
 
-# if __name__ == "__main__":
+dbpool = DbPoolUtil(db_type="mysql")
+
+if __name__ == "__main__":
     # 使用demo，工作目录在项目目录的前提下,使用表为TEST2表
-    # dbpool_util = DbPoolUtil(db_type="mysql")
     # sql1 = """DELETE FROM TEST2"""
     # result1 = dbpool_util.execute_iud(sql1)
     # print(result1)
@@ -299,8 +299,8 @@ class DbPoolUtil(object):
     #
     # dbpool_util.loop_row(mod_test, "print_row", sql3)
 
-    # sql4 = """SELECT id,name FROM TEST2 where id = %s"""
+    sql4 = """SELECT bid, bname FROM books where bid > %s"""
     # sql4 = """SELECT id,name FROM TEST2 where id = :1"""
-    # test_args4 = (3,)
-    # result4 = dbpool_util.execute_query(sql4, args=test_args4)
-    # print(result4)
+    test_args4 = (10,)
+    result4 = dbpool.execute_query(sql4, args=test_args4)
+    print(result4)
