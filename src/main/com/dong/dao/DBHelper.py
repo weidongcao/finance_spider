@@ -4,14 +4,17 @@
 import pymysql
 from DBUtils.PooledDB import PooledDB, SharedDBConnection
 from DBUtils.PersistentDB import PersistentDB, PersistentDBError, NotSupportedError
+from com.dong.utils.PropertiesUtil import prop
+
 config = {
-    'host': '13.209.87.201',
-    'port': 3306,
-    'database': 'wedo',
-    'user': 'wedo',
-    'password': '2708poem',
-    'charset': 'utf8'
+    'host': prop.__getattribute__("host"),
+    'port': prop.__getattribute__("port"),
+    'database': prop.__getattribute__("database"),
+    'user': prop.__getattribute__("username"),
+    'password': prop.__getattribute__("password"),
+    'charset': prop.__getattribute__("charset")
 }
+
 
 def get_db_pool(is_mult_thread):
     if is_mult_thread:
