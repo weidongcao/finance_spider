@@ -36,3 +36,10 @@ print(soup.p.attrs['name'])
 print(soup.p['name'])
 print(soup.p['class'])
 print(soup.p.string)
+
+a = 'hello'
+b = a
+b.capitalize()
+print(a)
+print(b)
+
