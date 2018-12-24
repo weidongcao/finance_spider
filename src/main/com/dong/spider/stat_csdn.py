@@ -5,9 +5,8 @@ import json
 import re
 import sys
 
-import pymysql
-
 from com.dong.entity.Csdn import Csdn
+# from com.dong.utils.DbPoolUtil import dbpool
 
 
 def parse_page_index(html):
@@ -37,34 +36,11 @@ def write_to_json(content):
         f.write(json.dumps(content, ensure_ascii=False, ) + '\n')
 
 
-def csdn_write_to_mysql(csdn):
-    db = pymysql.connect(
-        host='13.209.87.201',
-        user='wedo',
-        password='xxxxxxxx',
-        port=3306,
-        db='wedo',
-        charset='utf8'
-    )
-    # db = pymysql.connect(
-    #     host='cm02.spark.com',
-    #     user='root',
-    #     password='123123',
-    #     port=3306,
-    #     db='spiders',
-    #     charset='utf8'
-    # )
-    cursor = db.cursor()
-    cursor.execute(csdn.insert_sql())
-    db.commit()
-    db.close()
-
-
 def main():
     if sys.platform.__eq__("linux"):
         file_path = "/opt/data/myblog/daerzei.html"
     elif sys.platform.__eq__("win32"):
-        file_path = "D:\\myblog\\daerzei.html"
+        file_path = "D:\\0WorkSpace\\atom\\myblog\\daerzei.html"
     else:
         return
 
@@ -81,7 +57,7 @@ def main():
         for csdn in csdn_set:
             # write_to_json(visit)
             print(csdn.__str__())
-            csdn_write_to_mysql(csdn)
+            # dbpool.execute_iud(csdn.insert_sql())
 
 
 if __name__ == "__main__":

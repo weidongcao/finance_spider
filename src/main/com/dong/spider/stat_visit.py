@@ -3,10 +3,13 @@
 """
 import json
 import re
+import sys
 
 import pymysql
+import requests
 
 from com.dong.entity.Visit import Visit
+# from com.dong.utils.DbPoolUtil import dbpool
 
 
 def parse_page_index(html):
@@ -35,21 +38,13 @@ def write_to_json(content):
 
 def visit_write_to_mysql(visit):
     db = pymysql.connect(
-        host='13.209.87.201',
+        host='caoweidong.cn',
         user='wedo',
-        password='xxxxxxxx',
+        password='2708poem',
         port=3306,
         db='wedo',
         charset='utf8'
     )
-    # db = pymysql.connect(
-    #     host='cm02.spark.com',
-    #     user='root',
-    #     password='123123',
-    #     port=3306,
-    #     db='spiders',
-    #     charset='utf8'
-    # )
     cursor = db.cursor()
     cursor.execute(visit.insert_sql())
     db.commit()
@@ -57,8 +52,15 @@ def visit_write_to_mysql(visit):
 
 
 def main():
+    if sys.platform.__eq__("linux"):
+        file_path = "/opt/data/myblog/daerzei.html"
+    elif sys.platform.__eq__("win32"):
+        file_path = "D:\\0WorkSpace\\atom\\myblog\\daerzei.html"
+    else:
+        return
+
     with open(
-            'D:\\0WorkSpace\\atom\\myblog\\daerzei.html',
+            file_path,
             'r',
             encoding='utf-8'
     ) as html_src:
@@ -70,8 +72,11 @@ def main():
         for visit in visit_set:
             # write_to_json(visit)
             print(visit.__str__())
-            visit_write_to_mysql(visit)
+            # dbpool.execute_iud(visit.insert_sql())
+            # visit_write_to_mysql(visit)
 
 
 if __name__ == "__main__":
+    #
     main()
+
