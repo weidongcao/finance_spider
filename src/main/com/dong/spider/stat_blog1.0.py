@@ -7,7 +7,7 @@ import re
 
 import requests
 
-from com.dong.domo.demo_str import str_count
+from com.dong.utils.str_utils import str_count
 from com.dong.entity.Blog import Blog
 from com.dong.utils.DbPoolUtil import dbpool
 from bs4 import BeautifulSoup as bs
@@ -82,7 +82,7 @@ def main():
             visit_data.append(visit.__data__())
     # print("len(data) = %s" % len(visit_data))
     print(visit_data)
-    dbpool.execute_many_iud(Blog.insert_temple, visit_data)
+    # dbpool.execute_many_iud(Blog.insert_temple, visit_data)
 
 
 if __name__ == "__main__":
