@@ -19,9 +19,8 @@ headers = {
 }
 
 
-def parse_page_index(url):
-    html = requests.get(url, headers=headers)
-    soup = bs(html.text, 'lxml')
+def parse_page_index(response):
+    soup = bs(response.text, 'lxml')
     publish_type = soup.select(".article-type")[0].get_text()
 
     title = soup.select(".title-article")[0].get_text()
@@ -29,6 +28,7 @@ def parse_page_index(url):
     publish_time = publish_time.replace("年", "-")
     publish_time = publish_time.replace("月", "-")
     publish_time = publish_time.replace("日", "-")
+    url = response.url
 
     count = str_count(soup.select("#content_views")[0].get_text())
 
@@ -52,8 +52,8 @@ def main():
     bid = 85294450
     url_template = "https://blog.csdn.net/daerzei/article/details/{bid}"
     url = url_template.format(bid=str(bid))
-
-    info = parse_page_index(url)
+    response = requests.get(url, headers=headers)
+    info = parse_page_index(response)
 
     dbpool.execute_iud(Blog.insert_temple, info.__data__())
 
