@@ -12,6 +12,9 @@ from com.dong.entity.Blog import Blog
 from com.dong.utils.DbPoolUtil import dbpool
 from bs4 import BeautifulSoup as bs
 
+main_page = "https://blog.csdn.net/daerzei"
+url_template = "https://blog.csdn.net/daerzei/article/list/{page}"
+
 headers = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 "
@@ -21,7 +24,7 @@ headers = {
 }
 
 
-def parse_page_index(html):
+def get_blog_info(html):
     pattern = re.compile(
         (
             'article-item-box.*?data-articleid="(.*?)"'
@@ -47,6 +50,21 @@ def parse_page_index(html):
             yield Blog(item[0].strip(), item[1].strip(), item[2].strip(), item[3].strip(), item[4].strip(), count.zh + count.en + count.digit + count.punc)
 
 
+def get_page_list(response):
+    page_info = []
+    pattern = re.compile(
+        (
+            "baseUrl = '(.*?)'"
+            ".*?var pageSize =(.*?);"
+            ".*?listTotal =(.*?);"
+         ),
+        re.S
+    )
+    items = re.findall(pattern, response)
+
+    return page_info
+
+
 def write_to_json(content):
     """
     将提取的结果写入文件，这里直接写入到一个文本文件中，通过json库的dumps()方法
@@ -60,29 +78,28 @@ def write_to_json(content):
 
 
 def main():
+    response = requests.get(main_page, headers=headers)
 
-    main_page = "https://blog.csdn.net/daerzei"
-    url_template = "https://blog.csdn.net/daerzei/article/list/{page}"
+    # 获取页数
+    page_list = get_page_list(response)
+    print(page_list)
+    exit(0)
+    # 抓取的博客信息
     visit_data = []
-    for index in range(4):
-        if index == 0:
-            url = main_page
-            headers['Referer'] = main_page
-        else:
-            headers['Referer'] = url_template.format(page=str(index))
-            index = index + 1
-            url = url_template.format(page=str(index))
+
+    for index in page_list:
+        url = url_template.format(page=str(index))
 
         response = requests.get(url, headers=headers)
-        # print(response.text)
-        info_list = parse_page_index(response.text)
+        info_list = get_blog_info(response.text)
 
         for visit in info_list:
             print(visit.__str__())
             visit_data.append(visit.__data__())
-    # print("len(data) = %s" % len(visit_data))
-    print(visit_data)
-    # dbpool.execute_many_iud(Blog.insert_temple, visit_data)
+    # 反转列表
+    visit_data.reverse()
+    # 写入数据库
+    dbpool.execute_many_iud(Blog.insert_temple, visit_data)
 
 
 if __name__ == "__main__":
